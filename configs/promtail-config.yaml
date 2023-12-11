@@ -12,44 +12,59 @@ clients:
 scrape_configs:
   - job_name: docker
     pipeline_stages:
-      - multiline:
-          firstline: '^(\[|\{)'
-          max_wait_time: 3s
-      - replace:
-          expression: '(\n)'
-          replace: '\\n'
-      - regex:
-          expression: '^\[.*\] {(?P<filename>.*):.*} (?P<level>[A-Z]*) - (?P<message>.*)'
-      - json:
-          expressions:
-            dag_id: dag_id
-            task_id: task_id
-            level: levelname
-            try_number: try_number
-            execution_date: execution_date
-            message: message
-      - replace:
-          expression: '(Level None)'
-          replace: 'INFO'
-          source: level
-      - labels:
-          dag_id:
-          task_id:
-          level:
-          filename:
-          try_number:
-          execution_date:
-      # Fix multi line if there was no message
-      - replace:
-          expression: '(\\\\n)'
-          replace: "\n"
-      # Fix multi line if there was a message
-      - replace:
-          expression: '(\\\\n)'
-          replace: "\n"
-          source: message
-      - output:
-          source: message
+      - match:
+          pipeline_name: "scheduler"
+          selector: '{container="airflow_scheduler"}'
+          action: keep
+          stages:
+            - multiline:
+                firstline: '^(\[|\{)'
+                max_wait_time: 3s
+            - replace:
+                expression: '(\n)'
+                replace: '\\n'
+            - regex:
+                expression: '^\[.*\] {(?P<filename>.*):.*} (?P<level>[A-Z]*) - (?P<message>.*)'
+            # Fix multi line if there was no message
+            - replace:
+                expression: '(\\\\n)'
+                replace: "\n"
+            # Fix multi line if there was a message
+            - replace:
+                expression: '(\\\\n)'
+                replace: "\n"
+                source: message
+            - labels:
+                level:
+                filename:
+            - output:
+                source: message
+      - match:
+          pipeline_name: "worker"
+          selector: '{container="airflow_worker"}'
+          action: keep
+          stages:
+            - json:
+                expressions:
+                  dag_id: dag_id
+                  task_id: task_id
+                  level: levelname
+                  try_number: try_number
+                  execution_date: execution_date
+                  message: message
+            - replace:
+                expression: '(Level None)'
+                replace: 'INFO'
+                source: level
+            - labels:
+                dag_id:
+                task_id:
+                level:
+                filename:
+                try_number:
+                execution_date:
+            - output:
+                source: message
     docker_sd_configs:
       - host: "unix:///var/run/docker.sock"
         refresh_interval: 5s

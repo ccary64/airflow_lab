@@ -4,3 +4,5 @@ ARG PYTHON_VERSION=${PYTHON_VERSION}
 
 # Airflow image
 FROM apache/airflow:${AIRFLOW_VERSION}-python${PYTHON_VERSION}
+
+# Add any providers down here

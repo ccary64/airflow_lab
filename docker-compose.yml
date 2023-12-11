@@ -8,6 +8,20 @@ services:
       - "5432:5432"
     env_file:
       .env
+  redis:
+    image: redis:7-bullseye
+    ports:
+      - "6379:6379"
+    # command: redis-server --requirepass redispass
+  #redis-commander:
+  #  image: rediscommander/redis-commander:latest
+  #  restart: always
+  #  environment:
+  #    REDIS_HOSTS: redis
+  #    REDIS_HOST: redis
+  #    REDIS_PORT: redis:6379
+  #  ports:
+  #    - 8081:8081
   airflow-init:
     build:
       context: "."
@@ -33,6 +47,7 @@ services:
       .env
     depends_on:
       - postgres
+      - redis
   airflow-scheduler:
     build:
       context: "."
@@ -53,6 +68,47 @@ services:
       .env
     depends_on:
       - postgres
+      - redis
+  airflow-worker:
+    build:
+      context: "."
+      dockerfile: "Dockerfile.airflow"
+      args:
+        - AIRFLOW_VERSION=${AIRFLOW_VERSION}
+        - PYTHON_VERSION=${PYTHON_VERSION}
+    container_name: airflow_worker
+    command: airflow celery worker
+    hostname: airflow_worker
+    restart: always
+    labels:
+      logging: "promtail"
+    volumes:
+      - ./dags:/opt/airflow/dags
+    # - ./plugins:/opt/airflow/plugins
+    env_file:
+      .env
+    depends_on:
+      - airflow-scheduler
+  airflow-flower:
+    build:
+      context: "."
+      dockerfile: "Dockerfile.airflow"
+      args:
+        - AIRFLOW_VERSION=${AIRFLOW_VERSION}
+        - PYTHON_VERSION=${PYTHON_VERSION}
+    container_name: airflow_flower
+    command: airflow celery flower
+    hostname: airflow_flower
+    restart: always
+    ports:
+      - 5555:5555
+    volumes:
+      - ./dags:/opt/airflow/dags
+    # - ./plugins:/opt/airflow/plugins
+    env_file:
+      .env
+    depends_on:
+      - airflow-worker
   airflow-webserver:
     build:
       context: "."
@@ -71,6 +127,7 @@ services:
       .env
     depends_on:
       - postgres
+      - redis
   loki:
     image: grafana/loki:2.9.2
     ports:
@@ -94,9 +151,9 @@ services:
       - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
     volumes:
       - ./volumes/grafana:/var/lib/grafana
-      - ./configs/grafana-datasources.yml:/etc/grafana/provisioning/datasources/config.yml
+      - ./configs/grafana-sources.yml:/etc/grafana/provisioning/datasources/config.yml
   statsd-exporter:
-    image: prom/statsd-exporter:v0.26.0
+    image: prom/statsd-exporter:v0.22.8
     container_name: airflow-statsd-exporter
     command: "--statsd.listen-udp=:8125 --web.listen-address=:9102"
     ports:
