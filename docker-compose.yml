@@ -1,0 +1,115 @@
+version: '3.7'
+
+services:
+  postgres:
+    image: postgres:13
+    container_name: postgres_db
+    ports:
+      - "5432:5432"
+    env_file:
+      .env
+  airflow-init:
+    build:
+      context: "."
+      dockerfile: "Dockerfile.airflow"
+      args:
+        - AIRFLOW_VERSION=${AIRFLOW_VERSION}
+        - PYTHON_VERSION=${PYTHON_VERSION}
+    container_name: airflow_init
+    entrypoint: /bin/bash
+    command:
+      - -c
+      - |
+        airflow db migrate &&  \
+        airflow users create \
+          --role Admin \
+          --username admin \
+          --password admin \
+          --email admin@airflow.com \
+          --firstname admin \
+          --lastname admin
+    restart: on-failure
+    env_file:
+      .env
+    depends_on:
+      - postgres
+  airflow-scheduler:
+    build:
+      context: "."
+      dockerfile: "Dockerfile.airflow"
+      args:
+        - AIRFLOW_VERSION=${AIRFLOW_VERSION}
+        - PYTHON_VERSION=${PYTHON_VERSION}
+    container_name: airflow_scheduler
+    command: airflow scheduler
+    hostname: airflow_scheduler
+    restart: always
+    labels:
+      logging: "promtail"
+    volumes:
+      - ./dags:/opt/airflow/dags
+    # - ./plugins:/opt/airflow/plugins
+    env_file:
+      .env
+    depends_on:
+      - postgres
+  airflow-webserver:
+    build:
+      context: "."
+      dockerfile: "Dockerfile.airflow"
+      args:
+        - AIRFLOW_VERSION=${AIRFLOW_VERSION}
+        - PYTHON_VERSION=${PYTHON_VERSION}
+    container_name: airflow_webserver
+    command: airflow webserver 
+    ports:
+      - 8091:8080
+    restart: always
+    volumes:
+      - ./dags:/opt/airflow/dags
+    env_file:
+      .env
+    depends_on:
+      - postgres
+  loki:
+    image: grafana/loki:2.9.2
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/local-config.yaml
+    volumes:
+      - ./volumes/loki:/loki
+  promtail:
+    image: grafana/promtail:2.9.2
+    volumes:
+      - ./configs/promtail-config.yaml:/etc/promtail/config.yml
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /var/lib/docker/containers:/var/lib/docker/containers
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_PATHS_PROVISIONING=/etc/grafana/provisioning
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+    volumes:
+      - ./volumes/grafana:/var/lib/grafana
+      - ./configs/grafana-datasources.yml:/etc/grafana/provisioning/datasources/config.yml
+  statsd-exporter:
+    image: prom/statsd-exporter:v0.26.0
+    container_name: airflow-statsd-exporter
+    command: "--statsd.listen-udp=:8125 --web.listen-address=:9102"
+    ports:
+      - 9123:9102
+      - 8125:8125/udp
+    volumes:
+      - ./configs/statsd.yml:/etc/statsd-exporter/mappings.yml
+  prometheus:
+    image: prom/prometheus
+    container_name: airflow-prometheus
+    user: "0"
+    ports:
+        - 9090:9090
+    volumes:
+      - ./configs/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./volumes/prometheus:/prometheus
