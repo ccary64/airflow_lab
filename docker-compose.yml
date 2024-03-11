@@ -45,6 +45,10 @@ services:
     restart: on-failure
     env_file:
       .env
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./configs/airflow_local_settings.py:/opt/airflow/config/airflow_local_settings.py
+      - ./configs/task_logger.py:/opt/airflow/config/task_logger.py
     depends_on:
       - postgres
       - redis
@@ -63,7 +67,8 @@ services:
       logging: "promtail"
     volumes:
       - ./dags:/opt/airflow/dags
-    # - ./plugins:/opt/airflow/plugins
+      - ./configs/airflow_local_settings.py:/opt/airflow/config/airflow_local_settings.py
+      - ./configs/task_logger.py:/opt/airflow/config/task_logger.py
     env_file:
       .env
     depends_on:
@@ -84,9 +89,12 @@ services:
       logging: "promtail"
     volumes:
       - ./dags:/opt/airflow/dags
-    # - ./plugins:/opt/airflow/plugins
+      - ./configs/airflow_local_settings.py:/opt/airflow/config/airflow_local_settings.py
+      - ./configs/task_logger.py:/opt/airflow/config/task_logger.py
     env_file:
       .env
+    environment:
+      - AIRFLOW__LOGGING__LOGGING_CONFIG_CLASS=airflow_local_settings.LOGGING_CONFIG
     depends_on:
       - airflow-scheduler
   airflow-flower:
@@ -104,7 +112,8 @@ services:
       - 5555:5555
     volumes:
       - ./dags:/opt/airflow/dags
-    # - ./plugins:/opt/airflow/plugins
+      - ./configs/airflow_local_settings.py:/opt/airflow/config/airflow_local_settings.py
+      - ./configs/task_logger.py:/opt/airflow/config/task_logger.py
     env_file:
       .env
     depends_on:
@@ -123,6 +132,8 @@ services:
     restart: always
     volumes:
       - ./dags:/opt/airflow/dags
+      - ./configs/airflow_local_settings.py:/opt/airflow/config/airflow_local_settings.py
+      - ./configs/task_logger.py:/opt/airflow/config/task_logger.py
     env_file:
       .env
     depends_on:
