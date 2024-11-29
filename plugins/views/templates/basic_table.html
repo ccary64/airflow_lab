@@ -1,0 +1,28 @@
+{% extends base_template %}
+{% block content %}
+{{ super() }}
+<div class="container">
+    <div class="row">
+        <h1>{{ title }}</h1>
+        <br>
+        <div>
+            <table class="table table-striped table-bordered">
+                <tbody>
+                    <tr>
+                        {% for header in headers %}
+                            <th>{{ header["name"] }}</th>
+                        {% endfor %}
+                    </tr>
+                    {% for row in rows %}
+                        <tr>
+                            {% for header in headers %}
+                            <td>{{ row.get(header["value"], "") }}</td>
+                            {% endfor %}
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
