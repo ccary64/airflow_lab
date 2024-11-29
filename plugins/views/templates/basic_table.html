@@ -10,19 +10,23 @@
                 <tbody>
                     <tr>
                         {% for header in headers %}
-                            <th>{{ header["name"] }}</th>
+                        <th>{{ header["name"] }}</th>
                         {% endfor %}
                     </tr>
                     {% for row in rows %}
-                        <tr>
-                            {% for header in headers %}
-                            <td>{{ row.get(header["value"], "") }}</td>
-                            {% endfor %}
-                        </tr>
+                    <tr>
+                        {% for header in headers %}
+                        <td>{{ row.get(header["value"], "") }}</td>
+                        {% endfor %}
+                    </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
     </div>
 </div>
+{% endblock %}
+{% block tail_js %}
+{{ super() }}
+<script src="{{ url_for('example_plugin.static', filename='example.js') }}"></script>
 {% endblock %}

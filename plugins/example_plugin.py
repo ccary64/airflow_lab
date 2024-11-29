@@ -7,6 +7,8 @@ bp = Blueprint(
     "example_plugin",
     __name__,
     template_folder="views/templates",
+    static_folder="views/static",
+    static_url_path="/example_plugin/static",
 )
 
 
